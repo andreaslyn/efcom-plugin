@@ -23,7 +23,7 @@ plugin = defaultPlugin {
   }
 
 install :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
-install _ todo = addPassAfterSimplifier todo
+install _ todo = return todo -- addPassAfterSimplifier todo
   --fmap (++ [CoreDoPluginPass "TEST" dump]) (addPassAfterSimplifier todo)
 
 dump :: ModGuts -> CoreM ModGuts
@@ -61,7 +61,7 @@ addPassAfterSimplifier :: [CoreToDo] -> CoreM [CoreToDo]
 addPassAfterSimplifier [] = return []
 addPassAfterSimplifier (t@(CoreDoSimplify iters sm) : ts) = do
 {-
-  let start = if countSimplPasses ts == 100
+  let start = if countSimplPasses ts == 0
               then [CoreDoSimplify iters (sm {sm_names = ["simpl-Control.Af.Internal.Plugin"]}), CoreDoPluginPass "Control.Af.Internal.Plugin" (pass sm), t]
               else [t, CoreDoPluginPass "Control.Af.Internal.Plugin" (pass sm)]
 -}
@@ -94,10 +94,10 @@ pass sm guts = do
             let (expr', progress) = runState (inlineBindAf dflags expr) False
             expr'' <- if progress
                       then liftIO $ do
-                        us <-  mkSplitUniqSupply 's'
-                        let sz = exprSize expr'
-                        (e, _) <- initSmpl dflags emptyRuleEnv emptyFamInstEnvs us sz (Simplify.simplExpr (SimplEnv.mkSimplEnv sm) expr')
-                        return e
+                        --us <-  mkSplitUniqSupply 's'
+                        --let sz = exprSize expr'
+                        --(e, _) <- initSmpl dflags emptyRuleEnv emptyFamInstEnvs us sz (Simplify.simplExpr (SimplEnv.mkSimplEnv sm) expr')
+                        return expr'
                       else
                         return expr'
             return (NonRec b expr'')
@@ -110,10 +110,10 @@ pass sm guts = do
                     let (expr', progress) = runState (inlineBindAf dflags expr) False
                     expr'' <- if progress
                               then liftIO $ do
-                                us <-  mkSplitUniqSupply 's'
-                                let sz = exprSize expr'
-                                (e, _) <- initSmpl dflags emptyRuleEnv emptyFamInstEnvs us sz (Simplify.simplExpr (SimplEnv.mkSimplEnv sm) expr')
-                                return e
+                                --us <-  mkSplitUniqSupply 's'
+                                --let sz = exprSize expr'
+                                --(e, _) <- initSmpl dflags emptyRuleEnv emptyFamInstEnvs us sz (Simplify.simplExpr (SimplEnv.mkSimplEnv sm) expr')
+                                return expr'
                               else
                                 return expr'
                     return (b, expr'')
