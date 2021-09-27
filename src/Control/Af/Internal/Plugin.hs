@@ -23,7 +23,7 @@ plugin = defaultPlugin {
   }
 
 install :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
-install _ todo = return todo -- addPassAfterSimplifier todo
+install _ todo = addPassAfterSimplifier todo
   --fmap (++ [CoreDoPluginPass "TEST" dump]) (addPassAfterSimplifier todo)
 
 dump :: ModGuts -> CoreM ModGuts
@@ -74,12 +74,10 @@ addPassAfterSimplifier (t@(CoreDoPasses ss) : ts) = do
 addPassAfterSimplifier (t : ts) =
   fmap (t :) (addPassAfterSimplifier ts)
 
+
 isMarkedUnfoldable :: CoreBndr -> Bool
-isMarkedUnfoldable b =
-  case inl_act (idInlinePragma b) of
-    NeverActive -> False
-    _ -> True
-    
+isMarkedUnfoldable b = isAnyInlinePragma (idInlinePragma b)
+
 
 pass :: SimplMode -> ModGuts -> CoreM ModGuts
 pass sm guts = do
@@ -190,7 +188,6 @@ inlineBindAf dflags
     tryInlineVar :: State Bool CoreExpr
     tryInlineVar =
       if isAfVar dflags "bindAf" var
-          || isAfVar dflags "apAf" var
           || isAfVar dflags "fmapAf" var
       then
         let unf_m = maybeUnfoldingTemplate (idUnfolding var)
@@ -200,11 +197,9 @@ inlineBindAf dflags
               return (Var var)
             Just unf -> return unf
       else return (Var var)
-inlineBindAf dflags expr@(App (App (App (App (App (App (Var var) a1) a2) a3) a4) a5) a6) = do
+inlineBindAf dflags expr@(App (App (App (App (App (App (App (Var var) a1) a2) a3) a4) a5) a6) a7) = do
   --putMsgS $ "try-skip-expr = " ++ showSDoc dflags (ppr expr)
-  if isAfVar dflags "bindAfCont" var
-      || isAfVar dflags "apAfCont" var
-      || isAfVar dflags "fmapAfCont" var
+  if isAfVar dflags "AfContBind" var
   then return expr
   else do
     a1' <- inlineBindAf dflags a1
@@ -213,7 +208,8 @@ inlineBindAf dflags expr@(App (App (App (App (App (App (Var var) a1) a2) a3) a4)
     a4' <- inlineBindAf dflags a4
     a5' <- inlineBindAf dflags a5
     a6' <- inlineBindAf dflags a6
-    return (App (App (App (App (App (App (Var var) a1') a2') a3') a4') a5') a6')
+    a7' <- inlineBindAf dflags a7
+    return (App (App (App (App (App (App (App (Var var) a1') a2') a3') a4') a5') a6') a7')
 inlineBindAf dflags (App expr arg) = do
   --putMsgS $ "app-expr = " ++ showSDoc dflags (ppr expr)
   expr' <- inlineBindAf dflags expr
