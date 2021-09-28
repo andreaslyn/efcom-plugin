@@ -32,20 +32,12 @@ dump guts = do
     bindsOnlyPass (mapM (printBind dflags)) guts
   where printBind :: DynFlags -> CoreBind -> CoreM CoreBind
         printBind dflags (NonRec b expr) = do
-          if not ("$wloop" == showSDoc dflags (ppr b))
-          then
-            return (NonRec b expr)
-          else do
-            putMsgS ("Binding named " ++ showSDoc dflags (ppr b) ++ " =\n" ++ showSDoc dflags (ppr expr))
-            return (NonRec b expr)
+          putMsgS ("Binding named " ++ showSDoc dflags (ppr b) ++ " =\n" ++ showSDoc dflags (ppr expr))
+          return (NonRec b expr)
         printBind dflags (Rec bs) = do
           bs' <- flip mapM bs $ \ (b, expr) -> do
-                    if not ("$wloop" == showSDoc dflags (ppr b))
-                    then
-                      return (b, expr)
-                    else do
-                      putMsgS ("Recursive binding named " ++ showSDoc dflags (ppr b) ++ " =\n" ++ showSDoc dflags (ppr expr))
-                      return (b, expr)
+                    putMsgS ("Recursive binding named " ++ showSDoc dflags (ppr b) ++ " =\n" ++ showSDoc dflags (ppr expr))
+                    return (b, expr)
           return (Rec bs')
 
 countSimplPasses :: [CoreToDo] -> Int
@@ -199,7 +191,7 @@ inlineBindAf dflags
       else return (Var var)
 inlineBindAf dflags expr@(App (App (App (App (App (App (App (Var var) a1) a2) a3) a4) a5) a6) a7) = do
   --putMsgS $ "try-skip-expr = " ++ showSDoc dflags (ppr expr)
-  if isAfVar dflags "AfContBind" var
+  if isAfVar dflags "AfContBind" var || isAfVar dflags "$WAfContBind" var
   then return expr
   else do
     a1' <- inlineBindAf dflags a1
