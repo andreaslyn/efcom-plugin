@@ -124,14 +124,15 @@ inlineBindAf dflags (Var var) = do
   --putMsgS $ "var = " ++ showSDoc dflags (ppr (Var var :: CoreExpr))
   return (Var var)
 inlineBindAf dflags
-    (App (App (App (App
+    (App (App (App (App (App
     (Cast (App (App (App (App (App (Var var) a1) a2) a3) a4) a5) coe)
-    a6) a7) a8) a9) = do
+    a6) a7) a8) a9) a10) = do
   --putMsgS $ "var-inl = " ++ showSDoc dflags (ppr (Var var :: CoreExpr))
   base <- tryInlineVar
   case base of
-    Cast (Lam b1 (Lam b2 (Lam b3 (Lam b4 (Lam b5 (Lam b6 (Lam b7 (Lam b8 (Lam b9 body))))))))) _ -> do
+    Cast (Lam b1 (Lam b2 (Lam b3 (Lam b4 (Lam b5 (Lam b6 (Lam b7 (Lam b8 (Lam b9 (Lam b10 body)))))))))) _ -> do
       let su = extendSubst
+                (extendSubst
                 (extendSubst
                 (extendSubst
                 (extendSubst
@@ -148,7 +149,8 @@ inlineBindAf dflags
                 b6 a6)
                 b7 a7)
                 b8 a8)
-                b9 a9
+                b9 a9)
+                b10 a10
       put True
       let expr = substExpr Outputable.empty su body
       --putMsgS $ "inline-expr = " ++ showSDoc dflags (ppr (App (App (App (App (App
@@ -169,10 +171,11 @@ inlineBindAf dflags
       a7' <- inlineBindAf dflags a7
       a8' <- inlineBindAf dflags a8
       a9' <- inlineBindAf dflags a9
+      a10' <- inlineBindAf dflags a10
       return
-        (App (App (App (App
+        (App (App (App (App (App
         (Cast (App (App (App (App (App base a1') a2') a3') a4') a5') coe)
-        a6') a7') a8') a9')
+        a6') a7') a8') a9') a10')
   where
     tryInlineVar :: State Bool CoreExpr
     tryInlineVar =
