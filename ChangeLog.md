@@ -1,3 +1,3 @@
-# Changelog for af-plugin
+# Changelog for efcom-plugin
 
 ## Unreleased changes

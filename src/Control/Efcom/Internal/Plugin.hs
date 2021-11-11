@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 
-module Control.Af.Internal.Plugin (plugin) where
+module Control.Efcom.Internal.Plugin (plugin) where
 
 import GhcPlugins
 import CoreUnfold
@@ -54,10 +54,10 @@ addPassAfterSimplifier [] = return []
 addPassAfterSimplifier (t@(CoreDoSimplify iters sm) : ts) = do
 {-
   let start = if countSimplPasses ts == 0
-              then [CoreDoSimplify iters (sm {sm_names = ["simpl-Control.Af.Internal.Plugin"]}), CoreDoPluginPass "Control.Af.Internal.Plugin" (pass sm), t]
-              else [t, CoreDoPluginPass "Control.Af.Internal.Plugin" (pass sm)]
+              then [CoreDoSimplify iters (sm {sm_names = ["simpl-Control.Efcom.Internal.Plugin"]}), CoreDoPluginPass "Control.Efcom.Internal.Plugin" (pass sm), t]
+              else [t, CoreDoPluginPass "Control.Efcom.Internal.Plugin" (pass sm)]
 -}
-  let start = [t, CoreDoPluginPass "Control.Af.Internal.Plugin" (pass sm)]
+  let start = [t, CoreDoPluginPass "Control.Efcom.Internal.Plugin" (pass sm)]
   fmap (CoreDoPasses start :) (addPassAfterSimplifier ts)
 addPassAfterSimplifier (t@(CoreDoPasses ss) : ts) = do
   ss' <- addPassAfterSimplifier ss
@@ -81,7 +81,7 @@ pass sm guts = do
           then
             return (NonRec b expr)
           else do
-            let (expr', progress) = runState (inlineBindAf dflags expr) False
+            let (expr', progress) = runState (inlineBindCom dflags expr) False
             expr'' <- if progress
                       then liftIO $ do
                         --us <-  mkSplitUniqSupply 's'
@@ -97,7 +97,7 @@ pass sm guts = do
                   then
                     return (b, expr)
                   else do
-                    let (expr', progress) = runState (inlineBindAf dflags expr) False
+                    let (expr', progress) = runState (inlineBindCom dflags expr) False
                     expr'' <- if progress
                               then liftIO $ do
                                 --us <-  mkSplitUniqSupply 's'
@@ -109,21 +109,21 @@ pass sm guts = do
                     return (b, expr'')
           return (Rec bs')
 
-_isAfModuleVar :: DynFlags -> Var -> Bool
-_isAfModuleVar dflags var =
+_isComModuleVar :: DynFlags -> Var -> Bool
+_isComModuleVar dflags var =
   case nameModule_maybe (varName var) of
     Nothing -> False
-    Just mod -> showSDoc dflags (pprModule mod) == "Control.Af.Internal.Af"
+    Just mod -> showSDoc dflags (pprModule mod) == "Control.Efcom.Internal.Com"
 
-isAfVar :: DynFlags -> String -> Var -> Bool
-isAfVar dflags s var =
+isComVar :: DynFlags -> String -> Var -> Bool
+isComVar dflags s var =
   showSDoc dflags (ppr $ varName var) == s {- && isAfModuleVar var -}
 
-inlineBindAf :: DynFlags -> CoreExpr -> State Bool CoreExpr
-inlineBindAf dflags (Var var) = do
+inlineBindCom :: DynFlags -> CoreExpr -> State Bool CoreExpr
+inlineBindCom dflags (Var var) = do
   --putMsgS $ "var = " ++ showSDoc dflags (ppr (Var var :: CoreExpr))
   return (Var var)
-inlineBindAf dflags
+inlineBindCom dflags
     (App (App (App (App (App
     (Cast (App (App (App (App (App (Var var) a1) a2) a3) a4) a5) coe)
     a6) a7) a8) a9) a10) = do
@@ -157,21 +157,21 @@ inlineBindAf dflags
         --(Cast (App (App (App (App (App (Var var) a1) a2) a3) a4) a5) coe)
         --a6) a7) a8) a9) a10))
       --putMsgS $ "inline-result = " ++ showSDoc dflags (ppr expr)
-      expr' <- inlineBindAf dflags expr
+      expr' <- inlineBindCom dflags expr
       --putMsgS $ "inline-final = " ++ showSDoc dflags (ppr expr')
       return expr'
     _ -> do
       --putMsgS $ "NO INLINE"
-      a1' <- inlineBindAf dflags a1
-      a2' <- inlineBindAf dflags a2
-      a3' <- inlineBindAf dflags a3
-      a4' <- inlineBindAf dflags a4
-      a5' <- inlineBindAf dflags a5
-      a6' <- inlineBindAf dflags a6
-      a7' <- inlineBindAf dflags a7
-      a8' <- inlineBindAf dflags a8
-      a9' <- inlineBindAf dflags a9
-      a10' <- inlineBindAf dflags a10
+      a1' <- inlineBindCom dflags a1
+      a2' <- inlineBindCom dflags a2
+      a3' <- inlineBindCom dflags a3
+      a4' <- inlineBindCom dflags a4
+      a5' <- inlineBindCom dflags a5
+      a6' <- inlineBindCom dflags a6
+      a7' <- inlineBindCom dflags a7
+      a8' <- inlineBindCom dflags a8
+      a9' <- inlineBindCom dflags a9
+      a10' <- inlineBindCom dflags a10
       return
         (App (App (App (App (App
         (Cast (App (App (App (App (App base a1') a2') a3') a4') a5') coe)
@@ -179,8 +179,8 @@ inlineBindAf dflags
   where
     tryInlineVar :: State Bool CoreExpr
     tryInlineVar =
-      if isAfVar dflags "bindAf" var
-          || isAfVar dflags "fmapAf" var
+      if isComVar dflags "bindCom" var
+          || isComVar dflags "fmapCom" var
       then
         let unf_m = maybeUnfoldingTemplate (idUnfolding var)
         in case unf_m of
@@ -189,44 +189,44 @@ inlineBindAf dflags
               return (Var var)
             Just unf -> return unf
       else return (Var var)
-inlineBindAf dflags expr@(App (App (App (App (App (App (App (Var var) a1) a2) a3) a4) a5) a6) a7) = do
+inlineBindCom dflags expr@(App (App (App (App (App (App (App (Var var) a1) a2) a3) a4) a5) a6) a7) = do
   --putMsgS $ "try-skip-expr = " ++ showSDoc dflags (ppr expr)
-  if isAfVar dflags "AfContBind" var || isAfVar dflags "$WAfContBind" var
+  if isComVar dflags "ComContBind" var || isComVar dflags "$WComContBind" var
   then return expr
   else do
-    a1' <- inlineBindAf dflags a1
-    a2' <- inlineBindAf dflags a2
-    a3' <- inlineBindAf dflags a3
-    a4' <- inlineBindAf dflags a4
-    a5' <- inlineBindAf dflags a5
-    a6' <- inlineBindAf dflags a6
-    a7' <- inlineBindAf dflags a7
+    a1' <- inlineBindCom dflags a1
+    a2' <- inlineBindCom dflags a2
+    a3' <- inlineBindCom dflags a3
+    a4' <- inlineBindCom dflags a4
+    a5' <- inlineBindCom dflags a5
+    a6' <- inlineBindCom dflags a6
+    a7' <- inlineBindCom dflags a7
     return (App (App (App (App (App (App (App (Var var) a1') a2') a3') a4') a5') a6') a7')
-inlineBindAf dflags (App expr arg) = do
+inlineBindCom dflags (App expr arg) = do
   --putMsgS $ "app-expr = " ++ showSDoc dflags (ppr expr)
-  expr' <- inlineBindAf dflags expr
-  arg' <- inlineBindAf dflags arg
+  expr' <- inlineBindCom dflags expr
+  arg' <- inlineBindCom dflags arg
   return (App expr' arg')
-inlineBindAf dflags (Lam b expr) = do
+inlineBindCom dflags (Lam b expr) = do
   --putMsgS $ "lam-expr = " ++ showSDoc dflags (ppr expr)
-  fmap (Lam b) (inlineBindAf dflags expr)
-inlineBindAf dflags (Let bi expr) = do
+  fmap (Lam b) (inlineBindCom dflags expr)
+inlineBindCom dflags (Let bi expr) = do
   --putMsgS $ "let-expr = " ++ showSDoc dflags (ppr expr)
   bi' <- case bi of
-          NonRec b e -> fmap (NonRec b) (inlineBindAf dflags e)
-          Rec bs -> fmap Rec $ mapM (\ (b, e) -> fmap ((,) b) (inlineBindAf dflags e)) bs
-  fmap (Let bi') (inlineBindAf dflags expr)
-inlineBindAf dflags (Case expr b c alts) = do
+          NonRec b e -> fmap (NonRec b) (inlineBindCom dflags e)
+          Rec bs -> fmap Rec $ mapM (\ (b, e) -> fmap ((,) b) (inlineBindCom dflags e)) bs
+  fmap (Let bi') (inlineBindCom dflags expr)
+inlineBindCom dflags (Case expr b c alts) = do
   --putMsgS $ "case-expr = " ++ showSDoc dflags (ppr expr)
-  expr' <- inlineBindAf dflags expr
-  alts' <- mapM (\ (x, y, alt) -> fmap (\ e -> (x, y, e)) $ inlineBindAf dflags alt) alts
+  expr' <- inlineBindCom dflags expr
+  alts' <- mapM (\ (x, y, alt) -> fmap (\ e -> (x, y, e)) $ inlineBindCom dflags alt) alts
   return (Case expr' b c alts')
-inlineBindAf dflags (Cast expr coe) = do
+inlineBindCom dflags (Cast expr coe) = do
   --putMsgS $ "cast-expr = " ++ showSDoc dflags (ppr expr)
-  fmap (\ e -> Cast e coe) (inlineBindAf dflags expr)
-inlineBindAf dflags (Tick t expr) = do
+  fmap (\ e -> Cast e coe) (inlineBindCom dflags expr)
+inlineBindCom dflags (Tick t expr) = do
   --putMsgS $ "tick-expr = " ++ showSDoc dflags (ppr expr)
-  fmap (Tick t) (inlineBindAf dflags expr)
-inlineBindAf dflags expr = do
+  fmap (Tick t) (inlineBindCom dflags expr)
+inlineBindCom dflags expr = do
   --putMsgS $ "DEFAULT CASE " ++ showSDoc dflags (ppr expr)
   return expr
